@@ -88,23 +88,5 @@ if len(feature_cols) == 2:
         np.arange(X_set[:, 0].min() - 1, X_set[:, 0].max() + 1, 0.1),
         np.arange(X_set[:, 1].min() - 1, X_set[:, 1].max() + 1, 0.1)
     )
-
-    plt.figure(figsize=(8, 6))
-    plt.contourf(
-        X1, X2,
-        model.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
-        alpha=0.3,
-        cmap=plt.cm.Paired
-    )
-
-    plt.scatter(X_set[y_set == 0, 0], X_set[y_set == 0, 1], label="Did not survive", edgecolor='k')
-    plt.scatter(X_set[y_set == 1, 0], X_set[y_set == 1, 1], label="Survived", edgecolor='k')
-
-    plt.xlabel(f"{feature_cols[0]} (scaled)")
-    plt.ylabel(f"{feature_cols[1]} (scaled)")
-    plt.title("Titanic Logistic Regression Decision Boundary")
-    plt.legend()
-    st.pyplot(plt.gcf())
-    plt.close()
 else:
     st.warning("⚠️ Please select exactly 2 feature columns")
