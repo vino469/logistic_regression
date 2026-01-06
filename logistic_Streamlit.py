@@ -7,95 +7,102 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
-st.set_page_config(page_title="Logistic Regression", layout="centered")
-st.title("📈 Logistic Regression with Decision Boundary")
+st.set_page_config(page_title="Titanic Logistic Regression", layout="centered")
+st.title("🚢 Titanic Survival Prediction (Logistic Regression)")
 
-# Upload CSV
-uploaded_file = st.file_uploader("Upload CSV dataset", type=["csv"])
+# ----------------------------
+# Titanic sample dataset
+# ----------------------------
+@st.cache_data
+def load_titanic_data():
+    url = "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+    df = pd.read_csv(url)
+    return df
 
+uploaded_file = st.file_uploader("Upload Titanic CSV dataset", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    st.subheader("Dataset Preview")
-    st.dataframe(df.head())
+else:
+    df = load_titanic_data() 
+df = load_titanic_data()
+st.subheader("Dataset Preview")
+st.dataframe(df.head())
 
-    # Select target
-    target_col = st.selectbox("Select Target Column", df.columns)
+# Target column
+target_col = "Survived"
 
-    # Select exactly 2 features
-    feature_cols = st.multiselect(
-        "Select exactly 2 Feature Columns",
-        [c for c in df.columns if c != target_col],
-        max_selections=2
+# Select 2 features for decision boundary (numeric only)
+numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+numeric_cols.remove(target_col)
+
+# Let user optionally select features
+feature_cols = st.multiselect(
+    "Select exactly 2 numeric feature columns",
+    numeric_cols,
+    default=["Age", "Fare"],
+    max_selections=2
+)
+
+if len(feature_cols) == 2:
+    X = df[feature_cols].fillna(df[feature_cols].mean())  # fill missing
+    y = df[target_col]
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.25, random_state=42
     )
 
-    if len(feature_cols) == 2:
-        X = df[feature_cols]
-        y = df[target_col]
+    # Scaling
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
 
-        # Encode target if categorical
-        if y.dtype == "object":
-            le = LabelEncoder()
-            y = le.fit_transform(y)
+    # Train model
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
 
-        # Train-test split
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.25, random_state=42
-        )
+    # Accuracy
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    st.success(f"✅ Accuracy: {acc:.2f}")
 
-        # Scaling
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
+    # Decision Boundary Plot
+    st.subheader("📊 Decision Boundary")
 
-        # Train model
-        model = LogisticRegression()
-        model.fit(X_train, y_train)
+    X_set, y_set = X_test, y_test
+    X1, X2 = np.meshgrid(
+        np.arange(X_set[:, 0].min() - 1, X_set[:, 0].max() + 1, 0.01),
+        np.arange(X_set[:, 1].min() - 1, X_set[:, 1].max() + 1, 0.01)
+    )
 
-        # Accuracy
-        y_pred = model.predict(X_test)
-        acc = accuracy_score(y_test, y_pred)
-        st.success(f"✅ Accuracy: {acc:.2f}")
+    plt.figure(figsize=(8, 6))
+    plt.contourf(
+        X1, X2,
+        model.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
+        alpha=0.3,
+        cmap=plt.cm.Paired
+    )
 
-        # -------------------------
-        # Decision Boundary Plot
-        # -------------------------
-        st.subheader("📊 Decision Boundary")
+    plt.scatter(
+        X_set[y_set == 0, 0],
+        X_set[y_set == 0, 1],
+        label="Did not survive",
+        edgecolor='k'
+    )
 
-        X_set, y_set = X_test, y_test
-        X_set = np.array(X_set)
-        y_set = np.array(y_set)
+    plt.scatter(
+        X_set[y_set == 1, 0],
+        X_set[y_set == 1, 1],
+        label="Survived",
+        edgecolor='k'
+    )
 
-        X1, X2 = np.meshgrid(
-            np.arange(X_set[:, 0].min() - 1, X_set[:, 0].max() + 1, 0.01),
-            np.arange(X_set[:, 1].min() - 1, X_set[:, 1].max() + 1, 0.01)
-        )
+    plt.xlabel(f"{feature_cols[0]} (scaled)")
+    plt.ylabel(f"{feature_cols[1]} (scaled)")
+    plt.title("Titanic Logistic Regression Decision Boundary")
+    plt.legend()
 
-        plt.figure()
-        plt.contourf(
-            X1, X2,
-            model.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
-            alpha=0.3
-        )
-
-        plt.scatter(
-            X_set[y_set == 0, 0],
-            X_set[y_set == 0, 1],
-            label="Class 0"
-        )
-
-        plt.scatter(
-            X_set[y_set == 1, 0],
-            X_set[y_set == 1, 1],
-            label="Class 1"
-        )
-
-        plt.xlabel(f"{feature_cols[0]} (scaled)")
-        plt.ylabel(f"{feature_cols[1]} (scaled)")
-        plt.title("Logistic Regression Decision Boundary")
-        plt.legend()
-
-        st.pyplot(plt.gcf())
-        plt.close()
-
-    else:
-        st.warning("⚠️ Please select exactly 2 feature columns")
+    st.pyplot(plt.gcf())
+    plt.close()
+else:
+    st.warning("⚠️ Please select exactly 2 feature columns")
