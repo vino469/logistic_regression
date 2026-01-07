@@ -1,92 +1,45 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
 
-# -----------------------------
-# Page setup
-# -----------------------------
-st.set_page_config(page_title="Titanic Logistic Regression", layout="centered")
-st.title("🚢 Titanic Survival Prediction (Logistic Regression)")
+st.title("🚢 Titanic Survival Prediction")
 
-# -----------------------------
-# Load dataset
-# -----------------------------
-@st.cache_data
-def load_titanic_data():
-    url = "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
-    df = pd.read_csv(url)
-    return df
+# 1️⃣ Upload CSV
+uploaded_file = st.file_uploader("Upload Titanic CSV", type=["csv"])
 
-uploaded_file = st.file_uploader("Upload Titanic CSV dataset", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-else:
-    df = load_titanic_data()
 
-st.subheader("Dataset Preview")
-st.dataframe(df.head())
+    # ✅ Column safe fix: remove spaces, lowercase, replace spaces with underscores
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
 
-# -----------------------------
-# Check target column
-# -----------------------------
-target_col = "Survived"
+    # Optional: show columns for debugging
+    st.write("Columns in CSV after cleaning:", list(df.columns))
 
+    # 2️⃣ Required columns
+    required_cols = ['p_class','age','fare','survived']  # Corrected 'p_class'
+    missing_cols = [col for col in required_cols if col not in df.columns]
 
+    if missing_cols:
+        st.error(f"CSV is missing columns: {missing_cols}")
+    else:
+        # 3️⃣ Prepare features safely
+        X = df[['p_class','age','fare']].fillna(df[['p_class','age','fare']].mean())
+        y = df['survived']
 
-# -----------------------------
-# Select numeric feature columns
-# -----------------------------
-numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-if target_col in numeric_cols:
-    numeric_cols.remove(target_col)
+        # 4️⃣ Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
 
-feature_cols = st.multiselect(
-    "Select exactly 2 numeric feature columns",
-    numeric_cols,
-    default=["Age", "Fare"]
-)
+        # 5️⃣ Train model
+        model = LogisticRegression(max_iter=1000)
+        model.fit(X_train, y_train)
 
-if len(feature_cols) == 2:
-    # -----------------------------
-    # Prepare data
-    # -----------------------------
-    X = df[feature_cols].fillna(df[feature_cols].mean())
-    y = df[target_col]
+        st.success("✅ Model trained successfully!")
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.25, random_state=42
-    )
-
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-
-    # -----------------------------
-    # Train Logistic Regression
-    # -----------------------------
-    model = LogisticRegression()
-    model.fit(X_train, y_train)
-
-    # -----------------------------
-    # Accuracy
-    # -----------------------------
-    y_pred = model.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
-    st.success(f"✅ Accuracy: {acc:.2f}")
-
-    # -----------------------------
-    # Decision boundary plot
-    # -----------------------------
-    st.subheader("📊 Decision Boundary")
-
-    X_set, y_set = X_test, y_test
-    X1, X2 = np.meshgrid(
-        np.arange(X_set[:, 0].min() - 1, X_set[:, 0].max() + 1, 0.1),
-        np.arange(X_set[:, 1].min() - 1, X_set[:, 1].max() + 1, 0.1)
-    )
-else:
-    st.warning("⚠️ Please select exactly 2 feature columns")
+        # 6️⃣ Sample predictions
+        predictions = model.predict(X_test)
+        st.subheader("Sample Predictions")
+        st.write(predictions[:10])
