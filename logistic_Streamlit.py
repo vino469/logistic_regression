@@ -42,4 +42,4 @@ if uploaded_file is not None:
         # 6️⃣ Sample predictions
         predictions = model.predict(X_test)
         st.subheader("Sample Predictions")
-        st.write(predictions[:10])
+        st.write(predictions[:10]) 
